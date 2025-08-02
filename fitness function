@@ -1,0 +1,66 @@
+% Fitness Function
+function J = fitness_fcn_PID_f(x)
+    % Persistent variables
+    persistent cost_history best_cost_this_iter evals_in_iter
+
+    if evalin('base', 'exist(''reset_pso_history'', ''var'') && reset_pso_history')
+    cost_history = [];
+    evals_in_iter = 0;
+    best_cost_this_iter = Inf;
+    evalin('base', 'clear reset_pso_history');
+    end
+
+    % Extract PID values
+    Kp = x(1); Ki = x(2); Kd = x(3);
+
+    % Assign to Simulink model
+    assignin('base', 'Kp_f', Kp);
+    assignin('base', 'Ki_f', Ki);
+    assignin('base', 'Kd_f', Kd);
+
+    try
+        % Simulate the model
+        simOut = sim('combined_load_frequency_and_voltage_control_model_PID_f', ...
+                     'ReturnWorkspaceOutputs', 'on');
+        delta_f = simOut.get('delta_f');
+        y = delta_f.Data;
+        t = delta_f.Time;
+
+        % Check for invalid values
+        if any(isnan(y)) || any(isinf(y)) || max(abs(y)) > 10
+            J = 1e6;
+        else
+            % --- ITAE cost function ---
+            J = trapz(t, t .* abs(y));    % ITAE is the chosen performance index
+        end
+
+    catch
+        % Simulation failed
+        J = 1e6;
+    end
+
+    % Update evaluation counter
+    if isempty(evals_in_iter)
+        evals_in_iter = 1;
+        best_cost_this_iter = J;
+    else
+        evals_in_iter = evals_in_iter + 1;
+        if J < best_cost_this_iter
+            best_cost_this_iter = J;
+        end
+    end
+
+    % After every 15 evaluations (1 PSO iteration), log best cost
+    if mod(evals_in_iter, 15) == 0
+        if isempty(cost_history)
+            cost_history = best_cost_this_iter;
+        else
+            cost_history(end+1) = best_cost_this_iter;
+        end
+        best_cost_this_iter = Inf;
+    end
+
+    % Export cost history to base workspace
+    assignin('base', 'pso_cost_history', cost_history);
+end
+
