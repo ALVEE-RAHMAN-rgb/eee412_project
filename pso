@@ -1,0 +1,44 @@
+% Particle Swarm Optimization
+clear; clc;
+
+% PID gain bounds: [Kp Ki Kd]
+lb = [0.1, 0.01, 0];
+ub = [25, 25, 10];
+
+assignin('base', 'reset_pso_history', true);
+
+% PSO options
+options = optimoptions('particleswarm', ...
+    'SwarmSize', 15, ...
+    'MaxIterations', 10, ...
+    'Display', 'iter');
+
+% Run optimization
+[x_opt, J_opt] = particleswarm(@fitness_fcn_PID_f, 3, lb, ub, options);
+
+% Display best result
+fprintf('\n✅ Optimized PID gains:\n');
+fprintf('Kp_f = %.4f\n', x_opt(1));
+fprintf('Ki_f = %.4f\n', x_opt(2));
+fprintf('Kd_f = %.4f\n', x_opt(3));
+fprintf('Best ITAE = %.6f\n', J_opt);
+
+% Plot convergence (clean)
+valid_costs = pso_cost_history(pso_cost_history < 1e5);
+iters = 1:length(valid_costs);
+
+figure('Color', 'w');
+plot(iters, valid_costs, '-o', ...
+    'LineWidth', 2, ...
+    'MarkerSize', 5, ...
+    'Color', [0.1 0.3 0.9]);
+
+xlabel('Iteration', 'FontSize', 12);
+ylabel('Best Cost (ITAE)', 'FontSize', 12);
+title('PSO Cost Convergence', 'FontSize', 14);
+grid on;
+xticks(iters);
+xlim([1, length(valid_costs)]);
+set(gca, 'FontSize', 12);
+
+
